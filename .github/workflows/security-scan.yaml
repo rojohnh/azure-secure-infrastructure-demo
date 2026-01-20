@@ -1,0 +1,39 @@
+name: DevSecOps Security Scan
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  security-compliance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # 1. IaC Security Scan (Checkov)
+      # Checks Terraform for misconfigurations (e.g., public IPs, unencrypted storage)
+      - name: Run Checkov (IaC Scan)
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+          framework: terraform
+
+      # 2. Container Vulnerability Scan (Trivy)
+      # Scans the docker image before deployment
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'my-app:latest'
+          format: 'table'
+          exit-code: '1' # Fail pipeline if Critical vuln found
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      # 3. Secret Scanning (GitLeaks)
+      # Ensures no API keys were committed
+      - name: GitLeaks Scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
